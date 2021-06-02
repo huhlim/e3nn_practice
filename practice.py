@@ -25,7 +25,8 @@ def main():
     testloader = torch_geometric.data.DataLoader(AAset(), batch_size=20, shuffle=False)
     #
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = TestModel().to(device)
+    model = TestModel(layer='SE3Transformer').to(device)
+    #model = TestModel(layer='ConvLayer').to(device)
     model.device = device
     #
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
