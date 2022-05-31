@@ -21,12 +21,12 @@ from liblayer import loss_f_soft as loss_f
 from liblayer import TestModel, test
 
 def main():
-    trainloader = torch_geometric.data.DataLoader(AAset(), batch_size=4, shuffle=True)
-    testloader = torch_geometric.data.DataLoader(AAset(), batch_size=20, shuffle=False)
+    trainloader = torch_geometric.loader.DataLoader(AAset(), batch_size=4, shuffle=True)
+    testloader = torch_geometric.loader.DataLoader(AAset(), batch_size=20, shuffle=False)
     #
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = TestModel(layer='SE3Transformer').to(device)
-    #model = TestModel(layer='ConvLayer').to(device)
+    #model = TestModel(layer='SE3Transformer').to(device)
+    model = TestModel(layer='ConvLayer').to(device)
     model.device = device
     #
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
