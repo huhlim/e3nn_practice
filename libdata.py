@@ -16,6 +16,7 @@ dtype = torch.get_default_dtype()
 
 v_norm = lambda v: v / np.linalg.norm(v)
 
+
 class AAset(torch_geometric.data.Dataset):
     def __init__(self, selection="element != H"):
         self.pdb_s = []
@@ -24,7 +25,7 @@ class AAset(torch_geometric.data.Dataset):
         for pdbIndex, pdb_fn in enumerate(pdb_fn_s):
             pdb = mdtraj.load(pdb_fn, standard_names=False)
             calphaIndex = pdb.top.select("name CA")
-            xyz = pdb.xyz[0] - pdb.xyz[0,calphaIndex]
+            xyz = pdb.xyz[0] - pdb.xyz[0, calphaIndex]
             v_n = v_norm(xyz[pdb.top.select("name N")[0]])
             v_c = v_norm(xyz[pdb.top.select("name C")[0]])
             v_axis = v_norm(np.cross(v_n, v_c))
@@ -47,7 +48,7 @@ class AAset(torch_geometric.data.Dataset):
             data.output_element = torch.tensor(element, dtype=dtype)
             data.output_xyz = torch.tensor(xyz, dtype=dtype)
             data.output_pdbIndex = pdbIndex
-            data.output_q = torch.tensor(q[None,:], dtype=dtype)
+            data.output_q = torch.tensor(q[None, :], dtype=dtype)
             #
             print(pdbIndex, top.residue(0).name)
             self.pdb_s.append(data)

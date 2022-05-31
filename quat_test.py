@@ -22,20 +22,29 @@ from liblayer import ConvLayer, SE3Transformer
 
 torch.autograd.set_detect_anomaly(True)
 
+
 class TestModel(nn.Module):
     def __init__(self, layer="ConvLayer"):
         super().__init__()
         self.irreps_input = o3.Irreps("5x0e")
         self.irreps_output = o3.Irreps("1x0e+1x1o")
         if layer == "ConvLayer":
-            self.layer_1 = ConvLayer(self.irreps_input, "10x0e + 10x1o", radius=0.4, l_max=2)
-            self.layer_2 = ConvLayer("10x0e + 10x1o", self.irreps_output, radius=0.4, l_max=2)
+            self.layer_1 = ConvLayer(
+                self.irreps_input, "10x0e + 10x1o", radius=0.4, l_max=2
+            )
+            self.layer_2 = ConvLayer(
+                "10x0e + 10x1o", self.irreps_output, radius=0.4, l_max=2
+            )
         elif layer == "SE3Transformer":
             self.layer_1 = SE3Transformer(
                 self.irreps_input, "10x0e + 10x1o", "12x0e + 12x1o", radius=0.4, l_max=2
             )
             self.layer_2 = SE3Transformer(
-                "10x0e + 10x1o", self.irreps_output, "12x0e + 12x1o", radius=0.4, l_max=2
+                "10x0e + 10x1o",
+                self.irreps_output,
+                "12x0e + 12x1o",
+                radius=0.4,
+                l_max=2,
             )
         else:
             raise NotImplementedError
@@ -44,10 +53,11 @@ class TestModel(nn.Module):
         out = self.layer_1(x, x.input_element)
         out = self.layer_2(x, out)
         out = torch_scatter.scatter(out, x.batch, dim=0, reduce="sum")
-        out[:,0] = 2.0 * np.pi * (torch.sigmoid(out[:,0]) - 0.5)
-        v = out[:,1:].clone()
-        out[:,1:] = v / torch.linalg.norm(v, dim=1)[:,None]
+        out[:, 0] = 2.0 * np.pi * (torch.sigmoid(out[:, 0]) - 0.5)
+        v = out[:, 1:].clone()
+        out[:, 1:] = v / torch.linalg.norm(v, dim=1)[:, None]
         return out
+
     def test_equivariance(self, x):
         random_rotation = o3.rand_matrix().to(self.device)
         #
@@ -68,10 +78,11 @@ class TestModel(nn.Module):
         #
         for step, (o0, o1) in enumerate(zip(out_0, out_1)):
             status = torch.allclose(o0, o1, rtol=1e-4, atol=1e-4)
-            print (step, status)
+            print(step, status)
             if not status:
-                print (o0, o1)
+                print(o0, o1)
                 raise ValueError
+
 
 def test(model, dataloader):
     random_rotation = o3.rand_matrix()
@@ -81,13 +92,16 @@ def test(model, dataloader):
             batch.pos = batch.pos @ random_rotation.T
             batch = batch.to(model.device)
             output = model(batch).cpu().detach().numpy()
-            target = batch.output_q @ model.irreps_output.D_from_matrix(random_rotation).T
+            target = (
+                batch.output_q @ model.irreps_output.D_from_matrix(random_rotation).T
+            )
             target = target.cpu().detach().numpy()
-        mse = np.mean((output-target)**2)
+        mse = np.mean((output - target) ** 2)
         print("PREDICT\n", output.round(2))
         print("ANSWER\n", target.round(2))
         print("ACCURACY", mse)
         print("")
+
 
 def test_equivariance(model, dataloader):
     batch = next(iter(dataloader))
@@ -101,10 +115,12 @@ def test_equivariance(model, dataloader):
     #
     batch.pos = batch.pos @ random_rotation.T
     output_1 = model(batch)
-    print (torch.allclose(output_0, output_1, rtol=1e-4, atol=1e-4))
+    print(torch.allclose(output_0, output_1, rtol=1e-4, atol=1e-4))
     raise
 
+
 loss_f = torch.nn.MSELoss()
+
 
 def main():
     trainloader = torch_geometric.loader.DataLoader(AAset(), batch_size=4, shuffle=True)
@@ -113,12 +129,12 @@ def main():
     )
     #
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #model = TestModel(layer='SE3Transformer').to(device)
+    # model = TestModel(layer='SE3Transformer').to(device)
     model = TestModel(layer="ConvLayer").to(device)
     model.device = device
     #
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    #test_equivariance(model, testloader)
+    # test_equivariance(model, testloader)
     test(model, testloader)
     for epoch in range(500):
         loss_sum = 0.0
