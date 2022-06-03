@@ -57,18 +57,19 @@ class TestModel(pl.LightningModule):
         v = out[:, 1:].clone()
         out[:, 1:] = v / torch.linalg.norm(v, dim=1)[:, None]
         return out
+
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=0.001)
+
     def training_step(self, batch, batch_idx):
         loss = torch.nn.MSELoss()(self.forward(batch), batch.output_q)
         return loss
+
     def test_step(self, batch, batch_idx):
         random_rotation = o3.rand_matrix()
         batch.pos = batch.pos @ random_rotation.T
         output = self.forward(batch).cpu().detach().numpy()
-        target = (
-            batch.output_q @ self.irreps_output.D_from_matrix(random_rotation).T
-        )
+        target = batch.output_q @ self.irreps_output.D_from_matrix(random_rotation).T
         target = target.cpu().detach().numpy()
         #
         mse = np.mean((output - target) ** 2)
@@ -76,8 +77,10 @@ class TestModel(pl.LightningModule):
         print("ANSWER\n", target.round(2))
         print("ACCURACY", mse)
         print("")
+
     def validation_step(self, batch, batch_idx):
         self.test_step(batch, batch_idx)
+
 
 def main():
     trainloader = torch_geometric.loader.DataLoader(AAset(), batch_size=4, shuffle=True)
@@ -85,7 +88,7 @@ def main():
         AAset(), batch_size=20, shuffle=False
     )
     #
-    trainer = pl.Trainer(accelerator='cpu', max_epochs=500, check_val_every_n_epoch=50)
+    trainer = pl.Trainer(accelerator="cpu", max_epochs=500, check_val_every_n_epoch=50)
     #
     # model = TestModel(layer='SE3Transformer')
     model = TestModel(layer="ConvLayer")
