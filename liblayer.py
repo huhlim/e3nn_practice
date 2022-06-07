@@ -170,13 +170,16 @@ class SE3Transformer(nn.Module):
         v = self.tensor_product_v(f_in[edge_src], sh, self.mlp_v(edge_length_embedding))
         #
         # compute the softmax (per edge)
-        exp = edge_weight_cutoff[:, None] * self.dot_product(q[edge_dst], k).exp()
+        dot = self.dot_product(q[edge_dst], k)
+        dot -= dot.max()
+        #exp = edge_weight_cutoff[:, None] * self.dot_product(q[edge_dst], k).exp()
+        exp = edge_weight_cutoff[:, None] * dot.exp()
         z = torch_scatter.scatter(exp, edge_dst, dim=0, dim_size=len(f_in))
         z[z == 0] = 1.0
         alpha = exp / z[edge_dst]
         #
         f_out = torch_scatter.scatter(
-            alpha.sqrt() * v, edge_dst, dim=0, dim_size=len(f_in)
+            alpha.relu().sqrt() * v, edge_dst, dim=0, dim_size=len(f_in)
         )
         if self.norm is not None:
             f_out = self.norm(f_out)
