@@ -172,7 +172,7 @@ class SE3Transformer(nn.Module):
         # compute the softmax (per edge)
         dot = self.dot_product(q[edge_dst], k)
         dot -= dot.max()
-        #exp = edge_weight_cutoff[:, None] * self.dot_product(q[edge_dst], k).exp()
+        # exp = edge_weight_cutoff[:, None] * self.dot_product(q[edge_dst], k).exp()
         exp = edge_weight_cutoff[:, None] * dot.exp()
         z = torch_scatter.scatter(exp, edge_dst, dim=0, dim_size=len(f_in))
         z[z == 0] = 1.0
