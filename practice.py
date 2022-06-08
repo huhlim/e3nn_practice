@@ -29,13 +29,13 @@ def main():
     )
     #
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = TestModel(layer="SE3Transformer").to(device)
+    model = TestModel(layer="SE3Transformer", norm=True).to(device)
     # model = TestModel(layer="ConvLayer").to(device)
     model.device = device
     #
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     test(model, testloader)
-    for epoch in range(250):
+    for epoch in range(100):
         loss_sum = 0.0
         model.train()
         for batch in trainloader:

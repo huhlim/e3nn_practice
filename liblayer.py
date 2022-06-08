@@ -170,19 +170,23 @@ class SE3Transformer(nn.Module):
         v = self.tensor_product_v(f_in[edge_src], sh, self.mlp_v(edge_length_embedding))
         #
         # compute the softmax (per edge)
-        dot = self.dot_product(q[edge_dst], k)
-        dot -= dot.max()
+        _dot = self.dot_product(q[edge_dst], k)
+        dot = _dot - _dot.max()
         # exp = edge_weight_cutoff[:, None] * self.dot_product(q[edge_dst], k).exp()
         exp = edge_weight_cutoff[:, None] * dot.exp()
         z = torch_scatter.scatter(exp, edge_dst, dim=0, dim_size=len(f_in))
         z[z == 0] = 1.0
         alpha = exp / z[edge_dst]
+        print("alpha", alpha.min().item(), alpha.mean().item(), alpha.max().item())
         #
         f_out = torch_scatter.scatter(
             alpha.relu().sqrt() * v, edge_dst, dim=0, dim_size=len(f_in)
         )
+        print("f_out", f_out.mean().item(), f_out.std().item())
         if self.norm is not None:
             f_out = self.norm(f_out)
+        print("f_norm", f_out.mean().item(), f_out.std().item())
+        print("")
         if self.return_attn:
             attn = torch.zeros((n_node, n_node), dtype=torch.float)
             attn[edge_src, edge_dst] = alpha[:, 0]
@@ -192,24 +196,46 @@ class SE3Transformer(nn.Module):
 
 
 class TestModel(nn.Module):
-    def __init__(self, layer="ConvLayer"):
+    def __init__(self, layer="ConvLayer", norm=True):
         super().__init__()
         if layer == "ConvLayer":
-            self.layer_1 = ConvLayer("5x0e", "10x0e + 10x1o", radius=0.4, l_max=2)
-            self.layer_2 = ConvLayer("10x0e + 10x1o", "20x0e", radius=0.4, l_max=2)
+            self.layer_1 = ConvLayer(
+                "5x0e", "10x0e + 10x1o", radius=0.4, l_max=2, norm=norm
+            )
+            self.layer_2 = ConvLayer(
+                "10x0e + 10x1o", "10x0e + 10x1o", radius=0.4, l_max=2, norm=norm
+            )
+            self.layer_3 = ConvLayer(
+                "10x0e + 10x1o", "20x0e", radius=0.4, l_max=2, norm=norm
+            )
         elif layer == "SE3Transformer":
             self.layer_1 = SE3Transformer(
-                "5x0e", "10x0e + 10x1o", "12x0e + 12x1o", radius=0.4, l_max=2
+                "5x0e", "10x0e + 10x1o", "12x0e + 12x1o", radius=0.4, l_max=2, norm=norm
             )
             self.layer_2 = SE3Transformer(
-                "10x0e + 10x1o", "20x0e", "12x0e + 12x1o", radius=0.4, l_max=2
+                "10x0e + 10x1o",
+                "10x0e + 10x1o",
+                "12x0e + 12x1o",
+                radius=0.4,
+                l_max=2,
+                norm=norm,
+            )
+            self.layer_3 = SE3Transformer(
+                "10x0e + 10x1o",
+                "20x0e",
+                "12x0e + 12x1o",
+                radius=0.4,
+                l_max=2,
+                norm=norm,
             )
         else:
             raise NotImplementedError
 
     def forward(self, x):
+        print("-----")
         out = self.layer_1(x, x.input_element)
         out = self.layer_2(x, out)
+        out = self.layer_3(x, out)
         out = torch_scatter.scatter(out, x.batch, dim=0, reduce="sum")
         out = torch.nn.functional.softmax(out, dim=-1)
         return out

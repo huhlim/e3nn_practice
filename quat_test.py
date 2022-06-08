@@ -129,12 +129,13 @@ def main():
     )
     #
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # model = TestModel(layer='SE3Transformer').to(device)
-    model = TestModel(layer="ConvLayer").to(device)
+    model = TestModel(layer="SE3Transformer").to(device)
+    # model = TestModel(layer="ConvLayer").to(device)
     model.device = device
     #
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    # test_equivariance(model, testloader)
+    test_equivariance(model, testloader)
+    return
     test(model, testloader)
     for epoch in range(500):
         loss_sum = 0.0
