@@ -24,20 +24,36 @@ torch.autograd.set_detect_anomaly(True)
 
 
 class TestModel(nn.Module):
-    def __init__(self, layer="ConvLayer"):
+    def __init__(self, layer="ConvLayer", loop=False, self_interaction=True):
         super().__init__()
         self.irreps_input = o3.Irreps("5x0e")
         self.irreps_output = o3.Irreps("1x0e+1x1o")
         if layer == "ConvLayer":
             self.layer_1 = ConvLayer(
-                self.irreps_input, "10x0e + 10x1o", radius=0.4, l_max=2
+                self.irreps_input,
+                "10x0e + 10x1o",
+                radius=0.4,
+                l_max=2,
+                loop=loop,
+                self_interaction=self_interaction,
             )
             self.layer_2 = ConvLayer(
-                "10x0e + 10x1o", self.irreps_output, radius=0.4, l_max=2
+                "10x0e + 10x1o",
+                self.irreps_output,
+                radius=0.4,
+                l_max=2,
+                loop=loop,
+                self_interaction=self_interaction,
             )
         elif layer == "SE3Transformer":
             self.layer_1 = SE3Transformer(
-                self.irreps_input, "10x0e + 10x1o", "12x0e + 12x1o", radius=0.4, l_max=2
+                self.irreps_input,
+                "10x0e + 10x1o",
+                "12x0e + 12x1o",
+                radius=0.4,
+                l_max=2,
+                loop=loop,
+                self_interaction=self_interaction,
             )
             self.layer_2 = SE3Transformer(
                 "10x0e + 10x1o",
@@ -45,6 +61,8 @@ class TestModel(nn.Module):
                 "12x0e + 12x1o",
                 radius=0.4,
                 l_max=2,
+                loop=loop,
+                self_interaction=self_interaction,
             )
         else:
             raise NotImplementedError
@@ -92,9 +110,7 @@ def test(model, dataloader):
             batch.pos = batch.pos @ random_rotation.T
             batch = batch.to(model.device)
             output = model(batch).cpu().detach().numpy()
-            target = (
-                batch.output_q @ model.irreps_output.D_from_matrix(random_rotation).T
-            )
+            target = batch.output_q @ model.irreps_output.D_from_matrix(random_rotation).T
             target = target.cpu().detach().numpy()
         mse = np.mean((output - target) ** 2)
         print("PREDICT\n", output.round(2))
@@ -124,18 +140,15 @@ loss_f = torch.nn.MSELoss()
 
 def main():
     trainloader = torch_geometric.loader.DataLoader(AAset(), batch_size=4, shuffle=True)
-    testloader = torch_geometric.loader.DataLoader(
-        AAset(), batch_size=20, shuffle=False
-    )
+    testloader = torch_geometric.loader.DataLoader(AAset(), batch_size=20, shuffle=False)
     #
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = TestModel(layer="SE3Transformer").to(device)
+    model = TestModel(layer="ConvLayer", loop=True, self_interaction=True).to(device)
     # model = TestModel(layer="ConvLayer").to(device)
     model.device = device
     #
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    test_equivariance(model, testloader)
-    return
+    # test_equivariance(model, testloader)
     test(model, testloader)
     for epoch in range(500):
         loss_sum = 0.0
